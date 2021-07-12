@@ -3,9 +3,11 @@ package com.game.controller;
 import com.game.entity.Player;
 import com.game.entity.Profession;
 import com.game.entity.Race;
+import com.game.specifications.PlayerSpec;
 import org.springframework.beans.support.PagedListHolder;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +28,7 @@ public class RestContr {
     }
 
     @GetMapping("/rest/players")
-    public List start(@RequestParam(name = "name", required = false) String name,
+    public List<Player> start(@RequestParam(name = "name", required = false) String name,
                       @RequestParam(name = "title", required = false) String title,
                       @RequestParam(name = "race", required = false) Race race,
                       @RequestParam(name = "profession", required = false) Profession profession,
@@ -41,130 +43,45 @@ public class RestContr {
                       @RequestParam(name = "pageNumber", required = false, defaultValue = "0") Integer pageNumber,
                       @RequestParam(name = "pageSize", required = false, defaultValue = "3") Integer pageSize
     ) {
-        List<Player> allPlayers = playerService.listAll();
+        Specification<Player> playerSpec = Specification.where(null);
 
-        if (name != null) {
-            List<Player> players = playerService.byName(name);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
+        if (name != null) playerSpec = playerSpec.and(PlayerSpec.nameContains(name));
+        if (title != null) playerSpec = playerSpec.and(PlayerSpec.titleContains(title));
 
-        if (title != null) {
-            List<Player> players = playerService.byTitle(title);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-
-        if (race != null) {
-            List<Player> players = playerService.byRace(race);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-
-        if (profession != null) {
-            List<Player> players = playerService.byProf(profession);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
+        if (race != null) playerSpec = playerSpec.and(PlayerSpec.raceEquals(race));
+        if (profession != null) playerSpec = playerSpec.and(PlayerSpec.profEquals(profession));
         if (after != null) {
             Calendar calendar = Calendar.getInstance();
             calendar.setTimeInMillis(after);
             Date dateAfter = calendar.getTime();
-
-            List<Player> players = playerService.byDateAfter(dateAfter);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
+            playerSpec = playerSpec.and(PlayerSpec.birthAfter(dateAfter));
         }
-
         if (before != null) {
             Calendar calendar = Calendar.getInstance();
             calendar.setTimeInMillis(before);
-            Date dateBefore = calendar.getTime();
+            Date dateAfter = calendar.getTime();
+            playerSpec = playerSpec.and(PlayerSpec.birthBefore(dateAfter));
+        }
+        if (banned != null) playerSpec = playerSpec.and(PlayerSpec.isBanned(banned));
+        if (minExperience != null) playerSpec = playerSpec.and(PlayerSpec.expMore(minExperience));
+        if (maxExperience != null) playerSpec = playerSpec.and(PlayerSpec.expLess(maxExperience));
+        if (minLevel != null) playerSpec = playerSpec.and(PlayerSpec.lvlMore(minLevel));
+        if (maxLevel != null) playerSpec = playerSpec.and(PlayerSpec.lvlLess(maxLevel));
 
-            List<Player> players = playerService.byDateBefore(dateBefore);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
+//        if (order == null) {
+//            order = PlayerOrder.ID;
+//        }
+//        List<Player> allSorted = playerService.listAllSort(order.getFieldName());
+//        List<Player> result = new ArrayList<>();
+//        for (Player player : allSorted) {
+//            if (allPlayers.contains(player)) result.add(player);
+//        }
 
-        if (banned != null) {
-            List<Player> players = playerService.byBan(banned);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-        if (minExperience != null) {
-            List<Player> players = playerService.byExpMin(minExperience);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-        if (maxExperience != null) {
-            List<Player> players = playerService.byExpMax(maxExperience);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-        if (minLevel != null) {
-            List<Player> players = playerService.byLevMin(minLevel);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-
-        if (maxLevel != null) {
-            List<Player> players = playerService.byLevMax(maxLevel);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-
-        if (order == null) {
-            order = PlayerOrder.ID;
-        }
-
-        List<Player> allSorted = playerService.listAllSort(order.getFieldName());
-        List<Player> result = new ArrayList<>();
-        for (Player player : allSorted) {
-            if (allPlayers.contains(player)) result.add(player);
-        }
-
-        PagedListHolder<Player> page = new PagedListHolder<Player>(result);
-        page.setPageSize(pageSize); // number of items per page
-        page.setPage(pageNumber);      // set to first page
-
-        return page.getPageList();
+        return playerService.listAll(pageNumber, pageSize, playerSpec).getContent();
     }
 
     @GetMapping("/rest/players/count")
-    public Integer count(@RequestParam(name = "name", required = false) String name,
+    public long count(@RequestParam(name = "name", required = false) String name,
                          @RequestParam(name = "title", required = false) String title,
                          @RequestParam(name = "race", required = false) Race race,
                          @RequestParam(name = "profession", required = false) Profession profession,
@@ -176,114 +93,33 @@ public class RestContr {
                          @RequestParam(name = "minLevel", required = false) Integer minLevel,
                          @RequestParam(name = "maxLevel", required = false) Integer maxLevel) {
 
+        Specification<Player> playerSpec = Specification.where(null);
 
-        List<Player> allPlayers = playerService.listAll();
+        if (name != null) playerSpec = playerSpec.and(PlayerSpec.nameContains(name));
+        if (title != null) playerSpec = playerSpec.and(PlayerSpec.titleContains(title));
 
-        if (name != null) {
-            List<Player> players = playerService.byName(name);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-
-        if (title != null) {
-            List<Player> players = playerService.byTitle(title);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-
-        if (race != null) {
-            List<Player> players = playerService.byRace(race);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-
-        if (profession != null) {
-            List<Player> players = playerService.byProf(profession);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
+        if (race != null) playerSpec = playerSpec.and(PlayerSpec.raceEquals(race));
+        if (profession != null) playerSpec = playerSpec.and(PlayerSpec.profEquals(profession));
         if (after != null) {
-
             Calendar calendar = Calendar.getInstance();
             calendar.setTimeInMillis(after);
             Date dateAfter = calendar.getTime();
-
-            List<Player> players = playerService.byDateAfter(dateAfter);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
+            playerSpec = playerSpec.and(PlayerSpec.birthAfter(dateAfter));
         }
-
         if (before != null) {
             Calendar calendar = Calendar.getInstance();
             calendar.setTimeInMillis(before);
-            Date dateBefore = calendar.getTime();
+            Date dateAfter = calendar.getTime();
+            playerSpec = playerSpec.and(PlayerSpec.birthBefore(dateAfter));
+        }
+        if (banned != null) playerSpec = playerSpec.and(PlayerSpec.isBanned(banned));
+        if (minExperience != null) playerSpec = playerSpec.and(PlayerSpec.expMore(minExperience));
+        if (maxExperience != null) playerSpec = playerSpec.and(PlayerSpec.expLess(maxExperience));
+        if (minLevel != null) playerSpec = playerSpec.and(PlayerSpec.lvlMore(minLevel));
+        if (maxLevel != null) playerSpec = playerSpec.and(PlayerSpec.lvlLess(maxLevel));
 
-            List<Player> players = playerService.byDateBefore(dateBefore);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
+        return playerService.listAll(playerSpec);
 
-        if (banned != null) {
-            List<Player> players = playerService.byBan(banned);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-        if (minExperience != null) {
-            List<Player> players = playerService.byExpMin(minExperience);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-        if (maxExperience != null) {
-            List<Player> players = playerService.byExpMax(maxExperience);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-        if (minLevel != null) {
-            List<Player> players = playerService.byLevMin(minLevel);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-
-        if (maxLevel != null) {
-            List<Player> players = playerService.byLevMax(maxLevel);
-            List<Player> result = new ArrayList<>();
-            for (Player player : players) {
-                if (allPlayers.contains(player)) result.add(player);
-            }
-            allPlayers = result;
-        }
-
-        return allPlayers.size();
     }
 
     @PostMapping("/rest/players")
